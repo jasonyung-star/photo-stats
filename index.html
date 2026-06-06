@@ -176,8 +176,8 @@
 </head>
 <body>
 <div class="topbar">
-  <span class="topbar-brand">26FW</span>
-  <span class="topbar-title">拍攝進度</span>
+  <span class="topbar-brand">emily_lu</span>
+  <span class="topbar-title">版本：2026/06/06</span>
 </div>
 <div class="page-body">
 <div class="container">
@@ -415,33 +415,28 @@
     const dateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
 
     const wsData = [
-      ['26FW 拍攝進度統計'],
-      [`匯出時間：${dateStr}`],
-      [],
       ['商品分類', '款式合計', '目標套數', '已拍完', '完成進度（剩餘）', '每日拍攝量', '工作天數'],
       ...rows.map(r => {
         const rem = r.target !== null ? r.target - r.done : null;
         const dailyEl = document.getElementById(`daily-${r.category}`);
         const daysEl = document.getElementById(`days-${r.category}`);
-        const daily = dailyEl ? dailyEl.value : '';
-        const days = daysEl ? daysEl.textContent : '—';
+        const daily = dailyEl ? (dailyEl.value || '') : '';
+        const days = daysEl ? (daysEl.textContent === '—' ? '' : daysEl.textContent) : '';
         return [
           r.category,
-          r.styles ?? '—',
-          r.target ?? '—',
+          r.styles ?? '',
+          r.target ?? '',
           r.done,
-          rem !== null ? (rem <= 0 ? '✓ 完成' : rem) : '—',
-          daily || '—',
-          days,
+          rem !== null ? (rem <= 0 ? 0 : rem) : '',
+          daily !== '' ? Number(daily) : '',
+          days !== '' ? Number(days) : '',
         ];
       }),
-      [],
       ['合計', DB_TOTAL_STYLES, DB_TOTAL_TARGET, totalDone, DB_TOTAL_TARGET - totalDone, '', ''],
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     ws['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 16 }, { wch: 12 }, { wch: 10 }];
-    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '26FW進度統計');
@@ -503,23 +498,41 @@
       <td class="num-total">${DB_TOTAL_TARGET.toLocaleString()}</td>
       <td class="num-done" style="color:var(--green)">${totalDone.toLocaleString()}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:${totalRemaining <= 0 ? 'var(--green)' : 'var(--yellow)'}">${totalRemaining <= 0 ? '✓ 全部完成' : totalRemaining.toLocaleString()}</td>
-      <td></td><td></td>`;
+      <td></td>
+      <td class="num" id="totalDaysCell">—</td>`;
 
     // Auto-calculate days with default values
     rows.forEach(r => {
       const rem = r.target !== null ? r.target - r.done : null;
       if (rem !== null) calcDays(r.category, rem);
     });
+    updateTotalDays();
+  }
+
+  function updateTotalDays() {
+    const allDays = DATABASE.map(d => {
+      const el = document.getElementById(`days-${d.category}`);
+      if (!el) return null;
+      const v = el.textContent.replace(/,/g, '');
+      return (v && v !== '—' && v !== '✓') ? parseInt(v) : null;
+    }).filter(v => v !== null);
+    const cell = document.getElementById('totalDaysCell');
+    if (!cell) return;
+    if (allDays.length === 0) { cell.textContent = '—'; return; }
+    const max = Math.max(...allDays);
+    cell.textContent = max.toLocaleString();
+    cell.style.color = max <= 30 ? 'var(--green)' : max <= 60 ? 'var(--yellow)' : 'var(--red)';
   }
 
   function calcDays(category, remaining) {
     const dailyEl = document.getElementById(`daily-${category}`);
     const daysEl = document.getElementById(`days-${category}`);
     const daily = parseInt(dailyEl.value);
-    if (!daily || daily <= 0 || remaining <= 0) { daysEl.textContent = remaining <= 0 ? '✓' : '—'; return; }
+    if (!daily || daily <= 0 || remaining <= 0) { daysEl.textContent = remaining <= 0 ? '✓' : '—'; updateTotalDays(); return; }
     const days = Math.ceil(remaining / daily);
     daysEl.textContent = days.toLocaleString();
     daysEl.style.color = days <= 30 ? 'var(--green)' : days <= 60 ? 'var(--yellow)' : 'var(--red)';
+    updateTotalDays();
   }
 </script>
 </body>

@@ -264,7 +264,7 @@
     const tbody = document.getElementById('dbTableBody');
     tbody.innerHTML = DATABASE.map((d, i) => `
       <tr>
-        <td><span class="cat-dot" style="background:${COLORS[i % COLORS.length]}"></span>${d.category}</td>
+        <td>${d.category}</td>
         <td class="num">${d.styles.toLocaleString()}</td>
         <td class="num">${d.target.toLocaleString()}</td>
       </tr>`).join('');
@@ -403,7 +403,7 @@
       const remainDisp = remaining !== null ? (remaining <= 0 ? '✓ 完成' : remaining.toLocaleString()) : '—';
       const color = COLORS[DATABASE.findIndex(d => d.category === r.category) % COLORS.length] || COLORS[i % COLORS.length];
       return `<tr>
-        <td><span class="cat-dot" style="background:${color}"></span>${r.category}</td>
+        <td>${r.category}</td>
         <td class="num">${r.styles !== null ? r.styles.toLocaleString() : '—'}</td>
         <td class="num-total">${r.target !== null ? r.target.toLocaleString() : '—'}</td>
         <td class="num-done">${r.done.toLocaleString()}</td>

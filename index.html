@@ -3,509 +3,297 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>拍攝進度統計</title>
+  <title>26FW 拍攝進度統計</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg: #0d0f14;
-      --surface: #161a23;
-      --surface2: #1e2330;
-      --border: #2a3045;
-      --accent: #4f9eff;
-      --accent2: #7dd3fc;
-      --text: #e8edf5;
-      --text-dim: #8a95aa;
-      --green: #4ade80;
-      --yellow: #fbbf24;
-      --red: #f87171;
-      --glow: rgba(79, 158, 255, 0.15);
+      --bg: #f2ede8; --surface: #ffffff; --surface2: #f7f3ef;
+      --border: #e0d8d0; --accent: #8b6f5e; --accent2: #a8856f;
+      --text: #2d2420; --text-dim: #9c8c82;
+      --green: #5a8a6a; --yellow: #b8892a; --red: #b85a4a; --purple: #7a6a9a;
+      --glow: rgba(139,111,94,0.12);
+      --nav: #3d2e28;
     }
-
     body {
-      background: var(--bg);
-      color: var(--text);
+      background: var(--bg); color: var(--text);
       font-family: 'Noto Sans TC', sans-serif;
-      min-height: 100vh;
-      padding: 2rem 1.5rem 4rem;
+      min-height: 100vh; padding: 0 0 4rem;
     }
 
-    /* Subtle grid background */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(79,158,255,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(79,158,255,0.03) 1px, transparent 1px);
-      background-size: 40px 40px;
-      pointer-events: none;
-      z-index: 0;
+    /* Top nav bar like screenshot */
+    .topbar {
+      background: var(--nav); color: #e8ddd6;
+      padding: 0 2rem; height: 48px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
     }
+    .topbar-brand { font-size: 0.88rem; font-weight: 700; letter-spacing: 0.05em; color: #d4b89a; }
+    .topbar-title { font-size: 0.8rem; color: #c4b0a4; font-weight: 400; }
 
-    .container {
-      max-width: 860px;
-      margin: 0 auto;
-      position: relative;
-      z-index: 1;
-    }
+    .page-body { padding: 2rem 1.5rem 2rem; }
+    .container { max-width: 960px; margin: 0 auto; position: relative; }
 
     /* Header */
-    header {
-      margin-bottom: 3rem;
-      padding-bottom: 1.5rem;
-      border-bottom: 1px solid var(--border);
-    }
+    header { margin-bottom: 2rem; padding-bottom: 1.2rem; border-bottom: 1px solid var(--border); }
+    .header-label { font-family:'DM Mono',monospace; font-size:0.68rem; letter-spacing:0.18em; color:var(--accent); text-transform:uppercase; margin-bottom:0.4rem; }
+    h1 { font-size:clamp(1.4rem,3.5vw,2rem); font-weight:700; letter-spacing:-0.02em; line-height:1.2; color:var(--text); }
+    h1 span { color:var(--accent); }
+    .subtitle { margin-top:0.4rem; color:var(--text-dim); font-size:0.85rem; font-weight:300; }
 
-    .header-label {
-      font-family: 'DM Mono', monospace;
-      font-size: 0.7rem;
-      letter-spacing: 0.2em;
-      color: var(--accent);
-      text-transform: uppercase;
-      margin-bottom: 0.6rem;
+    /* Tabs */
+    .tabs { display:flex; gap:0.25rem; margin-bottom:1.8rem; border-bottom:1px solid var(--border); }
+    .tab {
+      padding:0.55rem 1.2rem; font-size:0.85rem; font-weight:500; cursor:pointer;
+      color:var(--text-dim); border-bottom:2px solid transparent; margin-bottom:-1px;
+      transition:color 0.2s,border-color 0.2s; border-radius:4px 4px 0 0;
     }
+    .tab:hover { color:var(--accent); background:var(--surface2); }
+    .tab.active { color:var(--accent); border-bottom-color:var(--accent); background:var(--surface2); }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
 
-    h1 {
-      font-size: clamp(1.6rem, 4vw, 2.4rem);
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--text);
-      line-height: 1.2;
-    }
+    /* Section label */
+    .section-label { font-family:'DM Mono',monospace; font-size:0.65rem; letter-spacing:0.18em; color:var(--accent); text-transform:uppercase; margin-bottom:0.9rem; }
 
-    h1 span {
-      color: var(--accent);
-    }
-
-    .subtitle {
-      margin-top: 0.5rem;
-      color: var(--text-dim);
-      font-size: 0.9rem;
-      font-weight: 300;
-    }
+    /* DB table */
+    .db-info { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:1.5rem; box-shadow:0 1px 4px rgba(139,111,94,0.08); }
+    .db-info-header { display:flex; align-items:center; justify-content:space-between; padding:0.85rem 1.4rem; background:var(--surface2); border-bottom:1px solid var(--border); }
+    .db-info-title { font-size:0.88rem; font-weight:500; color:var(--text); }
+    .badge { font-family:'DM Mono',monospace; font-size:0.68rem; padding:0.2rem 0.6rem; background:rgba(139,111,94,0.1); color:var(--accent); border-radius:99px; border:1px solid rgba(139,111,94,0.25); }
+    .badge.green { background:rgba(90,138,106,0.1); color:var(--green); border-color:rgba(90,138,106,0.3); }
+    table { width:100%; border-collapse:collapse; }
+    thead th { padding:0.65rem 1.4rem; font-size:0.7rem; font-family:'DM Mono',monospace; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-dim); text-align:left; background:var(--surface2); border-bottom:1px solid var(--border); }
+    thead th:not(:first-child) { text-align:right; }
+    tbody tr { border-bottom:1px solid var(--border); transition:background 0.12s; }
+    tbody tr:last-child { border-bottom:none; }
+    tbody tr:hover { background:#faf6f2; }
+    td { padding:0.8rem 1.4rem; font-size:0.87rem; color:var(--text); }
+    td:not(:first-child) { text-align:right; font-family:'DM Mono',monospace; color:var(--text); }
+    .tfoot-row td { padding:0.8rem 1.4rem; background:var(--surface2); border-top:1px solid var(--border); font-weight:600; }
+    .tfoot-row td:not(:first-child) { font-family:'DM Mono',monospace; color:var(--accent); }
+    .cat-dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:0.55rem; vertical-align:middle; }
 
     /* Upload zone */
     .upload-zone {
-      border: 1.5px dashed var(--border);
-      border-radius: 12px;
-      padding: 3rem 2rem;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
-      background: var(--surface);
-      position: relative;
-      overflow: hidden;
+      border:1.5px dashed var(--border); border-radius:10px; padding:2.5rem 2rem;
+      text-align:center; cursor:pointer; transition:border-color 0.2s,background 0.2s,box-shadow 0.2s;
+      background:var(--surface); position:relative; overflow:hidden;
+      box-shadow:0 1px 4px rgba(139,111,94,0.06);
     }
+    .upload-zone::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at 50% 0%,var(--glow),transparent 70%); opacity:0; transition:opacity 0.3s; }
+    .upload-zone:hover,.upload-zone.drag-over { border-color:var(--accent); background:var(--surface2); box-shadow:0 0 0 3px rgba(139,111,94,0.1); }
+    .upload-zone:hover::before,.upload-zone.drag-over::before { opacity:1; }
+    .upload-icon { font-size:2rem; margin-bottom:0.7rem; display:block; }
+    .upload-title { font-size:0.92rem; font-weight:500; margin-bottom:0.3rem; color:var(--text); }
+    .upload-hint { font-size:0.76rem; color:var(--text-dim); font-family:'DM Mono',monospace; }
+    .upload-btn { display:inline-block; margin-top:1rem; padding:0.48rem 1.3rem; background:var(--accent); color:#fff; border-radius:6px; font-size:0.82rem; font-weight:500; cursor:pointer; transition:background 0.2s,transform 0.1s; position:relative; z-index:1; }
+    .upload-btn:hover { background:var(--accent2); transform:translateY(-1px); }
+    #fileInput { display:none; }
+    .file-chip { display:none; align-items:center; gap:0.5rem; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:0.45rem 0.9rem; margin-top:0.9rem; font-size:0.78rem; color:var(--text-dim); }
+    .file-chip.show { display:inline-flex; }
+    .file-chip-name { color:var(--green); font-family:'DM Mono',monospace; font-size:0.74rem; }
+    .error-box { display:none; margin-top:1rem; padding:0.65rem 1rem; background:rgba(184,90,74,0.06); border:1px solid rgba(184,90,74,0.25); border-radius:8px; color:var(--red); font-size:0.82rem; }
+    .error-box.show { display:block; }
+    .spinner { display:none; width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; margin:0.8rem auto 0; }
+    .spinner.show { display:block; }
+    @keyframes spin { to { transform:rotate(360deg); } }
 
-    .upload-zone::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse at 50% 0%, var(--glow), transparent 70%);
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
+    /* Progress results */
+    #results { margin-top:2rem; opacity:0; transform:translateY(14px); transition:opacity 0.4s,transform 0.4s; }
+    #results.visible { opacity:1; transform:translateY(0); }
 
-    .upload-zone:hover,
-    .upload-zone.drag-over {
-      border-color: var(--accent);
-      background: var(--surface2);
-      box-shadow: 0 0 0 4px rgba(79,158,255,0.08), inset 0 0 30px rgba(79,158,255,0.05);
-    }
+    /* Summary cards */
+    .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:0.75rem; margin-bottom:1.6rem; }
+    .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem 1.2rem; position:relative; overflow:hidden; transition:border-color 0.2s,box-shadow 0.2s; box-shadow:0 1px 3px rgba(139,111,94,0.07); }
+    .stat-card::after { content:''; position:absolute; top:0;left:0;right:0;height:3px; background:var(--accent); opacity:0; transition:opacity 0.2s; border-radius:3px 3px 0 0; }
+    .stat-card:hover { border-color:var(--accent); box-shadow:0 2px 8px var(--glow); }
+    .stat-card:hover::after { opacity:1; }
+    .stat-label { font-size:0.72rem; color:var(--text-dim); margin-bottom:0.35rem; }
+    .stat-value { font-family:'DM Mono',monospace; font-size:1.7rem; font-weight:500; color:var(--accent); line-height:1; }
+    .stat-value.green { color:var(--green); }
+    .stat-value.yellow { color:var(--yellow); }
+    .stat-unit { font-size:0.66rem; color:var(--text-dim); margin-left:2px; }
 
-    .upload-zone:hover::before,
-    .upload-zone.drag-over::before {
-      opacity: 1;
-    }
+    /* Progress table */
+    .prog-table-wrap { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; box-shadow:0 1px 4px rgba(139,111,94,0.08); }
+    .prog-table-header { display:flex; align-items:center; justify-content:space-between; padding:0.85rem 1.4rem; background:var(--surface2); border-bottom:1px solid var(--border); }
+    .prog-table-title { font-size:0.88rem; font-weight:500; color:var(--text); }
 
-    .upload-icon {
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
-      display: block;
-      filter: drop-shadow(0 0 12px rgba(79,158,255,0.4));
-    }
+    .prog-bar-wrap { min-width:100px; }
+    .prog-track { height:5px; background:var(--border); border-radius:99px; overflow:hidden; margin-bottom:0.22rem; }
+    .prog-fill { height:100%; border-radius:99px; background:var(--accent); transition:width 0.9s cubic-bezier(0.22,1,0.36,1); }
+    .prog-pct { font-family:'DM Mono',monospace; font-size:0.68rem; color:var(--text-dim); }
 
-    .upload-title {
-      font-size: 1rem;
-      font-weight: 500;
-      color: var(--text);
-      margin-bottom: 0.4rem;
-    }
+    .status-pill { display:inline-block; padding:0.15rem 0.55rem; border-radius:99px; font-size:0.7rem; font-weight:500; }
+    .pill-done { background:rgba(90,138,106,0.1); color:var(--green); border:1px solid rgba(90,138,106,0.3); }
+    .pill-partial { background:rgba(184,137,42,0.1); color:var(--yellow); border:1px solid rgba(184,137,42,0.3); }
+    .pill-none { background:rgba(184,90,74,0.07); color:var(--red); border:1px solid rgba(184,90,74,0.2); }
 
-    .upload-hint {
-      font-size: 0.8rem;
-      color: var(--text-dim);
-      font-family: 'DM Mono', monospace;
-    }
+    td.prog-td { min-width:130px; }
+    td.num { text-align:right; font-family:'DM Mono',monospace; font-size:0.87rem; color:var(--text); }
+    td.num-done { text-align:right; font-family:'DM Mono',monospace; font-size:0.87rem; color:var(--green); }
+    td.num-total { text-align:right; font-family:'DM Mono',monospace; font-size:0.87rem; color:var(--text-dim); }
 
-    .upload-btn {
-      display: inline-block;
-      margin-top: 1.2rem;
-      padding: 0.55rem 1.4rem;
-      background: var(--accent);
-      color: #fff;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
-      position: relative;
-      z-index: 1;
-    }
+    .note { margin-top:0.85rem; font-size:0.73rem; color:var(--text-dim); display:flex; align-items:center; gap:0.4rem; }
 
-    .upload-btn:hover { background: var(--accent2); transform: translateY(-1px); }
-    .upload-btn:active { transform: translateY(0); }
+    .warn-box { padding:0.85rem 1.1rem; background:rgba(184,137,42,0.07); border:1px solid rgba(184,137,42,0.25); border-radius:8px; color:var(--yellow); font-size:0.82rem; margin-top:0.9rem; display:none; }
+    .warn-box.show { display:block; }
 
-    #fileInput { display: none; }
-
-    /* Loaded file chip */
-    .file-chip {
-      display: none;
-      align-items: center;
-      gap: 0.6rem;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.6rem 1rem;
-      margin-top: 1.2rem;
-      font-size: 0.82rem;
-      color: var(--text-dim);
-    }
-
-    .file-chip.show { display: inline-flex; }
-
-    .file-chip-name {
-      color: var(--green);
-      font-family: 'DM Mono', monospace;
-      font-size: 0.78rem;
-    }
-
-    /* Error box */
-    .error-box {
-      display: none;
-      margin-top: 1.2rem;
-      padding: 0.8rem 1rem;
-      background: rgba(248,113,113,0.08);
-      border: 1px solid rgba(248,113,113,0.3);
-      border-radius: 8px;
-      color: var(--red);
-      font-size: 0.85rem;
-    }
-
-    .error-box.show { display: block; }
-
-    /* Results section */
-    #results {
-      margin-top: 2.5rem;
-      opacity: 0;
-      transform: translateY(16px);
-      transition: opacity 0.4s, transform 0.4s;
-    }
-
-    #results.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .section-label {
-      font-family: 'DM Mono', monospace;
-      font-size: 0.68rem;
-      letter-spacing: 0.18em;
-      color: var(--accent);
-      text-transform: uppercase;
-      margin-bottom: 1rem;
-    }
-
-    /* Stats cards row */
-    .stats-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 0.8rem;
-      margin-bottom: 2rem;
-    }
-
-    .stat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem 1.2rem;
-      position: relative;
-      overflow: hidden;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    .stat-card::after {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-
-    .stat-card:hover { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
-    .stat-card:hover::after { opacity: 1; }
-
-    .stat-label {
-      font-size: 0.75rem;
-      color: var(--text-dim);
-      margin-bottom: 0.4rem;
-      font-weight: 400;
-    }
-
-    .stat-value {
-      font-family: 'DM Mono', monospace;
-      font-size: 1.8rem;
-      font-weight: 500;
-      color: var(--accent2);
-      line-height: 1;
-    }
-
-    .stat-unit {
-      font-size: 0.7rem;
-      color: var(--text-dim);
-      margin-left: 2px;
-    }
-
-    /* Table */
-    .table-wrap {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    .table-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1rem 1.4rem;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface2);
-    }
-
-    .table-title {
-      font-size: 0.88rem;
-      font-weight: 500;
-      color: var(--text);
-    }
-
-    .table-badge {
-      font-family: 'DM Mono', monospace;
-      font-size: 0.7rem;
-      padding: 0.25rem 0.65rem;
-      background: rgba(79,158,255,0.12);
-      color: var(--accent);
-      border-radius: 99px;
-      border: 1px solid rgba(79,158,255,0.2);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    thead th {
-      padding: 0.75rem 1.4rem;
-      font-size: 0.72rem;
-      font-family: 'DM Mono', monospace;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      text-align: left;
-      background: var(--surface2);
-      border-bottom: 1px solid var(--border);
-    }
-
-    thead th:last-child { text-align: right; }
-
-    tbody tr {
-      border-bottom: 1px solid var(--border);
-      transition: background 0.15s;
-    }
-
-    tbody tr:last-child { border-bottom: none; }
-    tbody tr:hover { background: var(--surface2); }
-
-    td {
-      padding: 0.9rem 1.4rem;
-      font-size: 0.88rem;
-      color: var(--text);
-    }
-
-    td:last-child {
-      text-align: right;
-      font-family: 'DM Mono', monospace;
-      font-size: 0.9rem;
-      color: var(--accent2);
-      font-weight: 500;
-    }
-
-    .category-dot {
-      display: inline-block;
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      margin-right: 0.6rem;
-      vertical-align: middle;
-    }
-
-    /* Bar fill */
-    .bar-cell { width: 30%; padding-right: 1.4rem; }
-
-    .bar-track {
-      height: 4px;
-      background: var(--border);
-      border-radius: 99px;
-      overflow: hidden;
-    }
-
-    .bar-fill {
-      height: 100%;
-      border-radius: 99px;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-      transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    /* Total row */
-    .total-row td {
-      padding: 0.85rem 1.4rem;
-      background: var(--surface2);
-      border-top: 1px solid var(--border);
-      font-weight: 600;
-      color: var(--text);
-      font-size: 0.88rem;
-    }
-
-    .total-row td:last-child {
-      color: var(--green);
-      font-size: 1rem;
-    }
-
-    /* Footer note */
-    .note {
-      margin-top: 1rem;
-      font-size: 0.75rem;
-      color: var(--text-dim);
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-
-    /* Loading spinner */
-    .spinner {
-      display: none;
-      width: 18px; height: 18px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      margin: 0.8rem auto 0;
-    }
-
-    .spinner.show { display: block; }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Responsive */
-    @media (max-width: 540px) {
-      .bar-cell { display: none; }
-    }
+    @media(max-width:600px){ .prog-bar-wrap{display:none;} }
   </style>
 </head>
 <body>
+<div class="topbar">
+  <span class="topbar-brand">26FW</span>
+  <span class="topbar-title">拍攝進度追蹤系統</span>
+</div>
+<div class="page-body">
 <div class="container">
   <header>
-    <p class="header-label">Photo Progress Tracker</p>
-    <h1>拍攝進度<span>統計系統</span></h1>
-    <p class="subtitle">上傳 Excel 拍色進度檔，自動統計各商品分類「已拍完」拍攝套數</p>
+    <p class="header-label">26FW Photo Progress Tracker</p>
+    <h1>拍攝進度<span>追蹤系統</span></h1>
+    <p class="subtitle">內建 26FW 總款式資料庫，上傳拍攝進度 Excel 即可計算完成進度</p>
   </header>
 
-  <!-- Upload -->
-  <div class="upload-zone" id="dropZone">
-    <span class="upload-icon">📊</span>
-    <p class="upload-title">拖曳 Excel 檔案至此</p>
-    <p class="upload-hint">.xlsx / .xls &nbsp;·&nbsp; 工作表1 &nbsp;·&nbsp; 欄位：狀態、商品分類、拍攝套數</p>
-    <label class="upload-btn" for="fileInput">選擇檔案</label>
-    <input type="file" id="fileInput" accept=".xlsx,.xls" />
-    <div class="spinner" id="spinner"></div>
-    <div class="file-chip" id="fileChip">
-      <span>📄</span>
-      <span class="file-chip-name" id="fileName"></span>
-    </div>
-    <div class="error-box" id="errorBox"></div>
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" data-tab="progress">📊 進度統計</div>
+    <div class="tab" data-tab="database">🗂 款式資料庫</div>
   </div>
 
-  <!-- Results -->
-  <section id="results">
-    <p class="section-label">統計結果 — 已拍完</p>
+  <!-- ── TAB: Progress ── -->
+  <div class="tab-panel active" id="tab-progress">
+    <p class="section-label">上傳拍攝進度 Excel</p>
 
-    <div class="stats-row" id="statsRow"></div>
+    <div class="upload-zone" id="dropZone">
+      <span class="upload-icon">📂</span>
+      <p class="upload-title">拖曳拍攝進度 Excel 至此</p>
+      <p class="upload-hint">.xlsx / .xls &nbsp;·&nbsp; 需含欄位：狀態、商品分類、拍攝套數</p>
+      <label class="upload-btn" for="fileInput">選擇檔案</label>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" />
+      <div class="spinner" id="spinner"></div>
+      <div class="file-chip" id="fileChip"><span>📄</span><span class="file-chip-name" id="fileName"></span></div>
+      <div class="error-box" id="errorBox"></div>
+    </div>
 
-    <div class="table-wrap">
-      <div class="table-header">
-        <span class="table-title">商品分類 · 拍攝套數明細</span>
-        <span class="table-badge" id="totalBadge">—</span>
+    <div class="warn-box" id="warnBox">⚠ 上傳的分類與資料庫分類有不符，無基準的分類將以「—」顯示目標套數。</div>
+
+    <section id="results">
+      <div class="stats-row" id="statsRow"></div>
+      <div class="prog-table-wrap">
+        <div class="prog-table-header">
+          <span class="prog-table-title">各商品分類完成進度</span>
+          <span class="badge green" id="overallBadge">—</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>商品分類</th>
+              <th style="text-align:right">款式合計</th>
+              <th style="text-align:right">目標套數</th>
+              <th style="text-align:right">已拍完</th>
+              <th style="text-align:right">完成進度（剩餘）</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+          <tfoot><tr class="tfoot-row" id="totalRow"></tr></tfoot>
+        </table>
+      </div>
+      <p class="note"><span>ℹ</span><span>目標套數來自 26FW 總款式資料庫（各款需拍攝數量）；已拍完套數從進度 Excel 篩選「已拍完」加總。</span></p>
+    </section>
+  </div>
+
+  <!-- ── TAB: Database ── -->
+  <div class="tab-panel" id="tab-database">
+    <p class="section-label">26FW 總款式資料庫</p>
+    <div class="db-info">
+      <div class="db-info-header">
+        <span class="db-info-title">商品分類基準表</span>
+        <span class="badge">內建資料</span>
       </div>
       <table>
         <thead>
           <tr>
             <th>商品分類</th>
-            <th class="bar-cell">佔比</th>
-            <th style="text-align:right">拍攝套數</th>
+            <th style="text-align:right">款式合計</th>
+            <th style="text-align:right">各款需拍攝數量</th>
           </tr>
         </thead>
-        <tbody id="tableBody"></tbody>
-        <tfoot>
-          <tr class="total-row" id="totalRow"></tr>
-        </tfoot>
+        <tbody id="dbTableBody"></tbody>
+        <tfoot><tr class="tfoot-row" id="dbTotalRow"></tr></tfoot>
       </table>
     </div>
-
-    <p class="note">
-      <span>ℹ</span>
-      <span>僅統計「已拍完」狀態列；A欄與D欄之合併儲存格已自動向下填滿。</span>
-    </p>
-  </section>
+    <p class="note"><span>ℹ</span><span>此資料庫已內建於網站中，無需每次上傳。如需更新請修改程式碼中的 DATABASE 物件。</span></p>
+  </div>
+</div>
 </div>
 
 <script>
-  const COLORS = ['#4f9eff','#7dd3fc','#4ade80','#fbbf24','#f87171','#a78bfa','#fb923c'];
+  // ═══════════════════════════════════════════
+  //  26FW 總款式資料庫（內建）
+  // ═══════════════════════════════════════════
+  const DATABASE = [
+    { category: '女款',   styles: 421, target: 672 },
+    { category: '男款',   styles: 231, target: 299 },
+    { category: '中性款', styles: 27,  target: 40  },
+    { category: '童款',   styles: 294, target: 406 },
+    { category: 'Baby款', styles: 150, target: 265 },
+    { category: '女童款', styles: 1,   target: 2   },
+  ];
+  const DB_MAP = Object.fromEntries(DATABASE.map(d => [d.category, d]));
+  const DB_TOTAL_TARGET = DATABASE.reduce((s, d) => s + d.target, 0);
+  const DB_TOTAL_STYLES = DATABASE.reduce((s, d) => s + d.styles, 0);
 
+  const COLORS = ['#8b6f5e','#b8892a','#5a8a6a','#a86858','#7a8a6a','#9a7a5a','#6a8a9a'];
+
+  // ── Tabs ──
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ── Render DB table ──
+  (function renderDB() {
+    const tbody = document.getElementById('dbTableBody');
+    tbody.innerHTML = DATABASE.map((d, i) => `
+      <tr>
+        <td><span class="cat-dot" style="background:${COLORS[i % COLORS.length]}"></span>${d.category}</td>
+        <td class="num">${d.styles.toLocaleString()}</td>
+        <td class="num">${d.target.toLocaleString()}</td>
+      </tr>`).join('');
+    document.getElementById('dbTotalRow').innerHTML = `
+      <td>合計</td>
+      <td class="num" style="color:var(--green)">${DB_TOTAL_STYLES.toLocaleString()}</td>
+      <td class="num" style="color:var(--green)">${DB_TOTAL_TARGET.toLocaleString()}</td>`;
+  })();
+
+  // ── Upload ──
   const dropZone = document.getElementById('dropZone');
   const fileInput = document.getElementById('fileInput');
   const spinner = document.getElementById('spinner');
   const fileChip = document.getElementById('fileChip');
-  const fileName = document.getElementById('fileName');
+  const fileNameEl = document.getElementById('fileName');
   const errorBox = document.getElementById('errorBox');
+  const warnBox = document.getElementById('warnBox');
   const results = document.getElementById('results');
 
-  // Drag & drop
   dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
   dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-  dropZone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropZone.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
-  });
+  dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]); });
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) processFile(fileInput.files[0]); });
 
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files[0]) processFile(fileInput.files[0]);
-  });
-
-  function showError(msg) {
-    errorBox.textContent = '⚠ ' + msg;
-    errorBox.classList.add('show');
-    spinner.classList.remove('show');
-  }
+  function showError(msg) { errorBox.textContent = '⚠ ' + msg; errorBox.classList.add('show'); spinner.classList.remove('show'); }
 
   function processFile(file) {
     errorBox.classList.remove('show');
+    warnBox.classList.remove('show');
     results.classList.remove('visible');
     fileChip.classList.remove('show');
     spinner.classList.add('show');
@@ -516,40 +304,51 @@
         const wb = XLSX.read(e.target.result, { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
-
         if (!raw.length) throw new Error('工作表無資料');
 
-        // detect column names flexibly
         const keys = Object.keys(raw[0]);
         const colA = keys.find(k => /狀態/.test(k)) || keys[0];
         const colD = keys.find(k => /商品分類/.test(k)) || keys[3];
-        const colS = keys.find(k => /拍攝套數/.test(k)) || keys[18];
+        const colS = keys.find(k => /拍攝套數/.test(k));
+        if (!colS) throw new Error('找不到「拍攝套數」欄位');
 
-        if (!colS) throw new Error('找不到「拍攝套數」欄位，請確認欄位名稱');
-
-        // forward-fill 狀態 & 商品分類
+        // forward fill
         let lastA = '', lastD = '';
         const filled = raw.map(row => {
-          if (row[colA] !== '') lastA = row[colA];
-          if (row[colD] !== '') lastD = row[colD];
+          if (row[colA] !== '') lastA = String(row[colA]).trim();
+          if (row[colD] !== '') lastD = String(row[colD]).trim();
           return { status: lastA, category: lastD, count: Number(row[colS]) || 0 };
         });
 
         // filter 已拍完
         const done = filled.filter(r => r.status === '已拍完');
-        if (!done.length) throw new Error('沒有找到狀態為「已拍完」的資料');
+        if (!done.length) throw new Error('找不到「已拍完」狀態的資料');
 
-        // aggregate
+        // aggregate by category
         const agg = {};
         done.forEach(r => { agg[r.category] = (agg[r.category] || 0) + r.count; });
-        const sorted = Object.entries(agg).sort((a, b) => b[1] - a[1]);
-        const total = sorted.reduce((s, [, v]) => s + v, 0);
 
-        render(sorted, total, done.length, file.name);
+        // merge with DB: show all DB categories + any extra from excel
+        const allCats = [...new Set([...DATABASE.map(d => d.category), ...Object.keys(agg)])];
+        const rows = allCats.map(cat => ({
+          category: cat,
+          done: agg[cat] || 0,
+          styles: DB_MAP[cat] ? DB_MAP[cat].styles : null,
+          target: DB_MAP[cat] ? DB_MAP[cat].target : null,
+          inDB: !!DB_MAP[cat],
+        })).sort((a, b) => (b.done / (b.target || 1)) - (a.done / (a.target || 1)));
+
+        const totalDone = rows.reduce((s, r) => s + r.done, 0);
+        const overallPct = DB_TOTAL_TARGET > 0 ? Math.round(totalDone / DB_TOTAL_TARGET * 100) : 0;
+
+        // check mismatch
+        const hasExtra = rows.some(r => !r.inDB && r.done > 0);
+        if (hasExtra) warnBox.classList.add('show');
+
+        render(rows, totalDone, overallPct);
         spinner.classList.remove('show');
-        fileName.textContent = file.name;
+        fileNameEl.textContent = file.name;
         fileChip.classList.add('show');
-
         setTimeout(() => results.classList.add('visible'), 50);
       } catch (err) {
         showError(err.message || '解析失敗，請確認檔案格式');
@@ -559,57 +358,67 @@
     reader.readAsArrayBuffer(file);
   }
 
-  function render(sorted, total, rowCount, fname) {
-    const max = sorted[0][1];
+  function barColor(pct) {
+    if (pct >= 100) return 'var(--green)';
+    if (pct >= 50) return 'linear-gradient(90deg,var(--accent),var(--accent2))';
+    if (pct > 0) return 'var(--yellow)';
+    return 'var(--red)';
+  }
+
+  function statusPill(pct) {
+    if (pct >= 100) return '<span class="status-pill pill-done">已完成</span>';
+    if (pct > 0)    return '<span class="status-pill pill-partial">進行中</span>';
+    return '<span class="status-pill pill-none">未開始</span>';
+  }
+
+  function render(rows, totalDone, overallPct) {
+    document.getElementById('overallBadge').textContent = `整體完成 ${overallPct}%`;
 
     // Stats cards
-    const statsRow = document.getElementById('statsRow');
-    statsRow.innerHTML = `
+    const remaining = DB_TOTAL_TARGET - totalDone;
+    document.getElementById('statsRow').innerHTML = `
       <div class="stat-card">
-        <div class="stat-label">已拍完套數合計</div>
-        <div class="stat-value">${total}<span class="stat-unit">套</span></div>
+        <div class="stat-label">整體完成率</div>
+        <div class="stat-value ${overallPct >= 100 ? 'green' : overallPct >= 50 ? '' : 'yellow'}">${overallPct}<span class="stat-unit">%</span></div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">商品分類數</div>
-        <div class="stat-value">${sorted.length}<span class="stat-unit">類</span></div>
+        <div class="stat-label">已拍完套數</div>
+        <div class="stat-value green">${totalDone.toLocaleString()}<span class="stat-unit">套</span></div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">資料筆數</div>
-        <div class="stat-value">${rowCount}<span class="stat-unit">筆</span></div>
+        <div class="stat-label">目標總套數</div>
+        <div class="stat-value">${DB_TOTAL_TARGET.toLocaleString()}<span class="stat-unit">套</span></div>
       </div>
-    `;
+      <div class="stat-card">
+        <div class="stat-label">剩餘套數</div>
+        <div class="stat-value yellow">${Math.max(0, remaining).toLocaleString()}<span class="stat-unit">套</span></div>
+      </div>`;
 
-    document.getElementById('totalBadge').textContent = `共 ${total} 套`;
-
-    // Table
+    // Table rows
     const tbody = document.getElementById('tableBody');
-    tbody.innerHTML = sorted.map(([cat, val], i) => {
-      const pct = Math.round(val / max * 100);
-      const color = COLORS[i % COLORS.length];
-      return `
-        <tr>
-          <td><span class="category-dot" style="background:${color}"></span>${cat}</td>
-          <td class="bar-cell">
-            <div class="bar-track">
-              <div class="bar-fill" style="width:0%" data-pct="${pct}"></div>
-            </div>
-          </td>
-          <td>${val}</td>
-        </tr>`;
+    const DB_TOTAL_STYLES = DATABASE.reduce((s, d) => s + d.styles, 0);
+    tbody.innerHTML = rows.map((r, i) => {
+      const remaining = r.target !== null ? r.target - r.done : null;
+      const remainColor = remaining === null ? 'var(--text-dim)' : remaining <= 0 ? 'var(--green)' : remaining < (r.target * 0.3) ? 'var(--yellow)' : 'var(--red)';
+      const remainDisp = remaining !== null ? (remaining <= 0 ? '✓ 完成' : remaining.toLocaleString()) : '—';
+      const color = COLORS[DATABASE.findIndex(d => d.category === r.category) % COLORS.length] || COLORS[i % COLORS.length];
+      return `<tr>
+        <td><span class="cat-dot" style="background:${color}"></span>${r.category}</td>
+        <td class="num">${r.styles !== null ? r.styles.toLocaleString() : '—'}</td>
+        <td class="num-total">${r.target !== null ? r.target.toLocaleString() : '—'}</td>
+        <td class="num-done">${r.done.toLocaleString()}</td>
+        <td style="text-align:right;font-family:'DM Mono',monospace;font-size:0.88rem;font-weight:600;color:${remainColor}">${remainDisp}</td>
+      </tr>`;
     }).join('');
 
-    // Animate bars
-    setTimeout(() => {
-      document.querySelectorAll('.bar-fill').forEach(el => {
-        el.style.width = el.dataset.pct + '%';
-      });
-    }, 100);
-
     // Total row
+    const totalRemaining = DB_TOTAL_TARGET - totalDone;
     document.getElementById('totalRow').innerHTML = `
-      <td colspan="2" style="color:var(--text-dim);font-size:0.8rem">所有分類合計</td>
-      <td>${total}</td>
-    `;
+      <td>合計</td>
+      <td class="num" style="color:var(--accent2)">${DB_TOTAL_STYLES.toLocaleString()}</td>
+      <td class="num-total">${DB_TOTAL_TARGET.toLocaleString()}</td>
+      <td class="num-done" style="color:var(--green)">${totalDone.toLocaleString()}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:${totalRemaining <= 0 ? 'var(--green)' : 'var(--yellow)'}">${totalRemaining <= 0 ? '✓ 全部完成' : totalRemaining.toLocaleString()}</td>`;
   }
 </script>
 </body>

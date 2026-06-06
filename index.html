@@ -412,31 +412,74 @@
 
   function downloadExcel(rows, totalDone, overallPct) {
     const now = new Date();
-    const dateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+    // Collect data rows
+    const dataRows = rows.map(r => {
+      const rem = r.target !== null ? r.target - r.done : null;
+      const dailyEl = document.getElementById(`daily-${r.category}`);
+      const daysEl  = document.getElementById(`days-${r.category}`);
+      const daily = dailyEl && dailyEl.value ? Number(dailyEl.value) : '';
+      const daysText = daysEl ? daysEl.textContent.replace(/,/g,'') : '';
+      const days = (daysText && daysText !== '—' && daysText !== '✓') ? Number(daysText) : '';
+      return [
+        r.category,
+        r.styles ?? '',
+        r.target ?? '',
+        r.done,
+        rem !== null ? (rem <= 0 ? 0 : rem) : '',
+        daily,
+        days,
+      ];
+    });
+
+    const totalDaysEl = document.getElementById('totalDaysCell');
+    const totalDaysText = totalDaysEl ? totalDaysEl.textContent.replace(/,/g,'') : '';
+    const totalDays = (totalDaysText && totalDaysText !== '—') ? Number(totalDaysText) : '';
 
     const wsData = [
-      ['商品分類', '款式合計', '目標套數', '已拍完', '完成進度（剩餘）', '每日拍攝量', '工作天數'],
-      ...rows.map(r => {
-        const rem = r.target !== null ? r.target - r.done : null;
-        const dailyEl = document.getElementById(`daily-${r.category}`);
-        const daysEl = document.getElementById(`days-${r.category}`);
-        const daily = dailyEl ? (dailyEl.value || '') : '';
-        const days = daysEl ? (daysEl.textContent === '—' ? '' : daysEl.textContent) : '';
-        return [
-          r.category,
-          r.styles ?? '',
-          r.target ?? '',
-          r.done,
-          rem !== null ? (rem <= 0 ? 0 : rem) : '',
-          daily !== '' ? Number(daily) : '',
-          days !== '' ? Number(days) : '',
-        ];
-      }),
-      ['合計', DB_TOTAL_STYLES, DB_TOTAL_TARGET, totalDone, DB_TOTAL_TARGET - totalDone, '', ''],
+      ['商品分類','款式合計','目標套數','已拍完','完成進度（剩餘）','每日拍攝量','工作天數'],
+      ...dataRows,
+      ['合計', DB_TOTAL_STYLES, DB_TOTAL_TARGET, totalDone, DB_TOTAL_TARGET - totalDone, '', totalDays],
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-    ws['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 16 }, { wch: 12 }, { wch: 10 }];
+
+    // Column widths
+    ws['!cols'] = [
+      { wch: 12.875 }, { wch: 10.875 }, { wch: 10 }, { wch: 10 },
+      { wch: 16.875 }, { wch: 12.875 }, { wch: 10.875 }
+    ];
+
+    // Styling helpers
+    const headerFill  = { patternType: 'solid', fgColor: { rgb: '000000' } };
+    const dataFill    = { patternType: 'solid', fgColor: { rgb: 'FFFFFF' } };
+    const totalFill   = { patternType: 'solid', fgColor: { rgb: 'F7F7F7' } };
+    const headerFont  = { sz: 9, color: { rgb: '3C4043' } };
+    const dataFont    = { sz: 9, color: { rgb: '3E3E3E' } };
+    const centerAlign = { horizontal: 'center', vertical: 'center' };
+
+    const totalRows = wsData.length;
+    const totalCols = 7;
+
+    for (let r = 0; r < totalRows; r++) {
+      for (let c = 0; c < totalCols; c++) {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        if (!ws[addr]) ws[addr] = { t: 'z', v: '' };
+        const isHeader = r === 0;
+        const isTotal  = r === totalRows - 1;
+        ws[addr].s = {
+          fill:      isHeader ? headerFill : isTotal ? totalFill : dataFill,
+          font:      isHeader ? headerFont : dataFont,
+          alignment: centerAlign,
+          border: {
+            top:    { style: 'thin', color: { rgb: 'E0E0E0' } },
+            bottom: { style: 'thin', color: { rgb: 'E0E0E0' } },
+            left:   { style: 'thin', color: { rgb: 'E0E0E0' } },
+            right:  { style: 'thin', color: { rgb: 'E0E0E0' } },
+          }
+        };
+      }
+    }
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '26FW進度統計');

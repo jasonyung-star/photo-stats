@@ -117,11 +117,17 @@
     .warn-box { padding:0.85rem 1.1rem; background:rgba(184,137,42,0.07); border:1px solid rgba(184,137,42,0.25); border-radius:8px; color:var(--yellow); font-size:0.82rem; margin-top:0.9rem; display:none; }
     .warn-box.show { display:block; }
 
-    /* Two-column layout */
-    .main-layout { display:grid; grid-template-columns:1fr 220px; gap:1.5rem; align-items:start; }
-    .upload-col { position:sticky; top:64px; }
+    /* Layout */
+    .main-layout { max-width:100%; }
+    .content-col { width:100%; }
+
+    /* Action row: upload + download side by side below table */
+    .action-row { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; margin-top:1.5rem; }
+    .action-panel {}
+
+    /* Upload zone */
     .upload-zone {
-      border:1.5px dashed var(--border); border-radius:10px; padding:1.4rem 1rem;
+      border:1.5px dashed var(--border); border-radius:10px; padding:1.4rem 1.2rem;
       text-align:center; cursor:pointer; transition:border-color 0.2s,background 0.2s,box-shadow 0.2s;
       background:var(--surface); position:relative; overflow:hidden;
       box-shadow:0 1px 4px rgba(139,111,94,0.06);
@@ -131,11 +137,11 @@
     .upload-zone:hover::before,.upload-zone.drag-over::before { opacity:1; }
     .upload-icon { font-size:1.6rem; margin-bottom:0.5rem; display:block; }
     .upload-title { font-size:0.82rem; font-weight:500; margin-bottom:0.25rem; color:var(--text); }
-    .upload-hint { font-size:0.68rem; color:var(--text-dim); font-family:'DM Mono',monospace; line-height:1.5; }
-    .upload-btn { display:block; margin:0.8rem auto 0; padding:0.42rem 1rem; background:var(--accent); color:#fff; border-radius:6px; font-size:0.78rem; font-weight:500; cursor:pointer; transition:background 0.2s,transform 0.1s; position:relative; z-index:1; width:fit-content; }
+    .upload-hint { font-size:0.7rem; color:var(--text-dim); font-family:'DM Mono',monospace; line-height:1.5; }
+    .upload-btn { display:inline-block; margin:0.8rem auto 0; padding:0.42rem 1.2rem; background:var(--accent); color:#fff; border-radius:6px; font-size:0.78rem; font-weight:500; cursor:pointer; transition:background 0.2s,transform 0.1s; position:relative; z-index:1; }
     .upload-btn:hover { background:var(--accent2); transform:translateY(-1px); }
     #fileInput { display:none; }
-    .file-chip { display:none; align-items:center; gap:0.4rem; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:0.4rem 0.7rem; margin-top:0.7rem; font-size:0.74rem; color:var(--text-dim); flex-wrap:wrap; }
+    .file-chip { display:none; align-items:center; gap:0.4rem; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:0.4rem 0.7rem; margin-top:0.7rem; font-size:0.74rem; color:var(--text-dim); flex-wrap:wrap; justify-content:center; }
     .file-chip.show { display:flex; }
     .file-chip-name { color:var(--green); font-family:'DM Mono',monospace; font-size:0.7rem; word-break:break-all; }
     .error-box { display:none; margin-top:0.8rem; padding:0.6rem 0.8rem; background:rgba(184,90,74,0.06); border:1px solid rgba(184,90,74,0.25); border-radius:8px; color:var(--red); font-size:0.76rem; }
@@ -144,11 +150,10 @@
     .spinner.show { display:block; }
     @keyframes spin { to { transform:rotate(360deg); } }
 
-    @media(max-width:700px){
-      .main-layout { grid-template-columns:1fr; }
-      .upload-col { position:static; }
+    @media(max-width:600px){
+      .action-row { grid-template-columns:1fr; }
+      .prog-bar-wrap { display:none; }
     }
-    @media(max-width:600px){ .prog-bar-wrap{display:none;} }
 
     /* Download zone */
     .download-zone {
@@ -181,7 +186,7 @@
   </header>
 
   <div class="main-layout">
-    <!-- ── Left: stats + table ── -->
+    <!-- ── Full width content ── -->
     <div class="content-col">
       <div class="warn-box" id="warnBox">⚠ 上傳的分類與資料庫分類有不符，無基準的分類將以「—」顯示目標套數。</div>
 
@@ -200,40 +205,43 @@
               <th style="text-align:right">目標套數</th>
               <th style="text-align:right">已拍完</th>
               <th style="text-align:right">完成進度（剩餘）</th>
+              <th style="text-align:right">每日拍攝量</th>
+              <th style="text-align:right">工作天數</th>
             </tr>
           </thead>
-          <tbody id="tableBody">
-            <!-- default DB rows before upload -->
-          </tbody>
+          <tbody id="tableBody"></tbody>
           <tfoot><tr class="tfoot-row" id="totalRow"></tr></tfoot>
         </table>
       </div>
       <p class="note"><span>ℹ</span><span>目標套數來自 26FW 總款式資料庫；已拍完套數從進度 Excel 篩選「已拍完」加總。</span></p>
       <p class="note" id="uploadDateNote" style="display:none"><span>🕐</span><span id="uploadDateText"></span></p>
-    </div>
 
-    <!-- ── Right: upload ── -->
-    <div class="upload-col">
-      <p class="section-label">上傳進度檔</p>
-      <div class="upload-zone" id="dropZone">
-        <span class="upload-icon">📂</span>
-        <p class="upload-title">拖曳 Excel 至此</p>
-        <p class="upload-hint">.xlsx / .xls<br>欄位：狀態、商品分類、拍攝套數</p>
-        <label class="upload-btn" for="fileInput">選擇檔案</label>
-        <input type="file" id="fileInput" accept=".xlsx,.xls" />
-        <div class="spinner" id="spinner"></div>
-        <div class="file-chip" id="fileChip"><span>📄</span><span class="file-chip-name" id="fileName"></span></div>
-        <div class="error-box" id="errorBox"></div>
-      </div>
+      <!-- Upload + Download row -->
+      <div class="action-row">
+        <!-- Upload -->
+        <div class="action-panel">
+          <p class="section-label">上傳進度檔</p>
+          <div class="upload-zone" id="dropZone">
+            <span class="upload-icon">📂</span>
+            <p class="upload-title">拖曳 Excel 至此</p>
+            <p class="upload-hint">.xlsx / .xls &nbsp;·&nbsp; 欄位：狀態、商品分類、拍攝套數</p>
+            <label class="upload-btn" for="fileInput">選擇檔案</label>
+            <input type="file" id="fileInput" accept=".xlsx,.xls" />
+            <div class="spinner" id="spinner"></div>
+            <div class="file-chip" id="fileChip"><span>📄</span><span class="file-chip-name" id="fileName"></span></div>
+            <div class="error-box" id="errorBox"></div>
+          </div>
+        </div>
 
-      <!-- Download panel -->
-      <div id="downloadPanel" style="display:none;margin-top:1rem;">
-        <p class="section-label">下載統計表</p>
-        <div class="download-zone" id="downloadZone">
-          <span class="download-icon">📥</span>
-          <p class="download-title">26FW 進度統計</p>
-          <p class="download-hint">含商品分類、款式合計<br>目標套數、已拍完、剩餘</p>
-          <button class="download-btn" id="downloadBtn">下載 Excel</button>
+        <!-- Download -->
+        <div class="action-panel" id="downloadPanel" style="display:none">
+          <p class="section-label">下載統計表</p>
+          <div class="download-zone">
+            <span class="download-icon">📥</span>
+            <p class="download-title">26FW 進度統計</p>
+            <p class="download-hint">含商品分類、款式合計、目標套數、已拍完、剩餘、每日拍攝量、工作天數</p>
+            <button class="download-btn" id="downloadBtn">下載 Excel</button>
+          </div>
         </div>
       </div>
     </div>
@@ -243,12 +251,12 @@
 
 <script>
   const DATABASE = [
-    { category: '女款',   styles: 421, target: 672 },
-    { category: '男款',   styles: 231, target: 299 },
-    { category: '中性款', styles: 27,  target: 40  },
-    { category: '童款',   styles: 294, target: 406 },
-    { category: 'Baby款', styles: 150, target: 265 },
-    { category: '女童款', styles: 1,   target: 2   },
+    { category: '女款',   styles: 421, target: 672, dailyDefault: 30 },
+    { category: '男款',   styles: 231, target: 299, dailyDefault: 40 },
+    { category: '中性款', styles: 27,  target: 40,  dailyDefault: 30 },
+    { category: '童款',   styles: 294, target: 406, dailyDefault: 33 },
+    { category: 'Baby款', styles: 150, target: 265, dailyDefault: 21 },
+    { category: '女童款', styles: 1,   target: 2,   dailyDefault: 22 },
   ];
   const DB_MAP = Object.fromEntries(DATABASE.map(d => [d.category, d]));
   const DB_TOTAL_TARGET = DATABASE.reduce((s, d) => s + d.target, 0);
@@ -315,12 +323,13 @@
         <td class="num-total">${d.target.toLocaleString()}</td>
         <td class="num-done">—</td>
         <td style="text-align:right;font-family:'DM Mono',monospace;font-size:0.87rem;color:var(--text-dim)">—</td>
+        <td></td><td></td>
       </tr>`).join('');
     document.getElementById('totalRow').innerHTML = `
       <td>合計</td>
       <td class="num">${DB_TOTAL_STYLES.toLocaleString()}</td>
       <td class="num-total">${DB_TOTAL_TARGET.toLocaleString()}</td>
-      <td class="num-done">—</td><td></td>`;
+      <td class="num-done">—</td><td></td><td></td><td></td>`;
   }
 
   // ── Upload events ──
@@ -409,28 +418,30 @@
       ['26FW 拍攝進度統計'],
       [`匯出時間：${dateStr}`],
       [],
-      ['商品分類', '款式合計', '目標套數', '已拍完', '完成進度（剩餘）'],
+      ['商品分類', '款式合計', '目標套數', '已拍完', '完成進度（剩餘）', '每日拍攝量', '工作天數'],
       ...rows.map(r => {
         const rem = r.target !== null ? r.target - r.done : null;
+        const dailyEl = document.getElementById(`daily-${r.category}`);
+        const daysEl = document.getElementById(`days-${r.category}`);
+        const daily = dailyEl ? dailyEl.value : '';
+        const days = daysEl ? daysEl.textContent : '—';
         return [
           r.category,
           r.styles ?? '—',
           r.target ?? '—',
           r.done,
           rem !== null ? (rem <= 0 ? '✓ 完成' : rem) : '—',
+          daily || '—',
+          days,
         ];
       }),
       [],
-      ['合計', DB_TOTAL_STYLES, DB_TOTAL_TARGET, totalDone, DB_TOTAL_TARGET - totalDone],
+      ['合計', DB_TOTAL_STYLES, DB_TOTAL_TARGET, totalDone, DB_TOTAL_TARGET - totalDone, '', ''],
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    // Column widths
-    ws['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 16 }];
-
-    // Merge title row
-    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
+    ws['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 16 }, { wch: 12 }, { wch: 10 }];
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '26FW進度統計');
@@ -472,12 +483,16 @@
       const rem = r.target !== null ? r.target - r.done : null;
       const remColor = rem === null ? 'var(--text-dim)' : rem <= 0 ? 'var(--green)' : rem < (r.target * 0.3) ? 'var(--yellow)' : 'var(--red)';
       const remDisp = rem !== null ? (rem <= 0 ? '✓ 完成' : rem.toLocaleString()) : '—';
+      const dailyId = `daily-${r.category}`;
+      const daysId = `days-${r.category}`;
       return `<tr>
         <td>${r.category}</td>
         <td class="num">${r.styles !== null ? r.styles.toLocaleString() : '—'}</td>
         <td class="num-total">${r.target !== null ? r.target.toLocaleString() : '—'}</td>
         <td class="num-done">${r.done.toLocaleString()}</td>
         <td style="text-align:right;font-family:'DM Mono',monospace;font-size:0.88rem;font-weight:600;color:${remColor}">${remDisp}</td>
+        <td style="text-align:right;padding:0.4rem 1.4rem"><input type="number" id="${dailyId}" min="1" value="${DB_MAP[r.category]?.dailyDefault ?? ''}" placeholder="—" style="width:70px;text-align:right;border:1px solid var(--border);border-radius:6px;padding:0.3rem 0.5rem;font-size:0.82rem;font-family:'DM Mono',monospace;background:var(--surface2);color:var(--text);outline:none;" oninput="calcDays('${r.category}',${rem ?? 0})"></td>
+        <td style="text-align:right;font-family:'DM Mono',monospace;font-size:0.88rem;color:var(--text-dim)" id="${daysId}">—</td>
       </tr>`;
     }).join('');
 
@@ -487,7 +502,24 @@
       <td class="num">${DB_TOTAL_STYLES.toLocaleString()}</td>
       <td class="num-total">${DB_TOTAL_TARGET.toLocaleString()}</td>
       <td class="num-done" style="color:var(--green)">${totalDone.toLocaleString()}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:${totalRemaining <= 0 ? 'var(--green)' : 'var(--yellow)'}">${totalRemaining <= 0 ? '✓ 全部完成' : totalRemaining.toLocaleString()}</td>`;
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:${totalRemaining <= 0 ? 'var(--green)' : 'var(--yellow)'}">${totalRemaining <= 0 ? '✓ 全部完成' : totalRemaining.toLocaleString()}</td>
+      <td></td><td></td>`;
+
+    // Auto-calculate days with default values
+    rows.forEach(r => {
+      const rem = r.target !== null ? r.target - r.done : null;
+      if (rem !== null) calcDays(r.category, rem);
+    });
+  }
+
+  function calcDays(category, remaining) {
+    const dailyEl = document.getElementById(`daily-${category}`);
+    const daysEl = document.getElementById(`days-${category}`);
+    const daily = parseInt(dailyEl.value);
+    if (!daily || daily <= 0 || remaining <= 0) { daysEl.textContent = remaining <= 0 ? '✓' : '—'; return; }
+    const days = Math.ceil(remaining / daily);
+    daysEl.textContent = days.toLocaleString();
+    daysEl.style.color = days <= 30 ? 'var(--green)' : days <= 60 ? 'var(--yellow)' : 'var(--red)';
   }
 </script>
 </body>

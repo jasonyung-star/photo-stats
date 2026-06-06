@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>26FW 拍攝進度統計</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
@@ -148,6 +149,24 @@
       .upload-col { position:static; }
     }
     @media(max-width:600px){ .prog-bar-wrap{display:none;} }
+
+    /* Download zone */
+    .download-zone {
+      background:var(--surface); border:1px solid var(--border); border-radius:10px;
+      padding:1.2rem 1rem; text-align:center;
+      box-shadow:0 1px 4px rgba(139,111,94,0.06);
+    }
+    .download-icon { font-size:1.4rem; display:block; margin-bottom:0.4rem; }
+    .download-title { font-size:0.82rem; font-weight:500; color:var(--text); margin-bottom:0.2rem; }
+    .download-hint { font-size:0.67rem; color:var(--text-dim); font-family:'DM Mono',monospace; line-height:1.5; margin-bottom:0.75rem; }
+    .download-btn {
+      display:block; width:100%; padding:0.42rem 0; background:var(--surface2);
+      color:var(--accent); border:1px solid var(--border); border-radius:6px;
+      font-size:0.78rem; font-weight:500; cursor:pointer;
+      font-family:'Noto Sans TC',sans-serif;
+      transition:background 0.2s, border-color 0.2s, transform 0.1s;
+    }
+    .download-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); transform:translateY(-1px); }
   </style>
 </head>
 <body>
@@ -190,6 +209,7 @@
         </table>
       </div>
       <p class="note"><span>ℹ</span><span>目標套數來自 26FW 總款式資料庫；已拍完套數從進度 Excel 篩選「已拍完」加總。</span></p>
+      <p class="note" id="uploadDateNote" style="display:none"><span>🕐</span><span id="uploadDateText"></span></p>
     </div>
 
     <!-- ── Right: upload ── -->
@@ -204,6 +224,17 @@
         <div class="spinner" id="spinner"></div>
         <div class="file-chip" id="fileChip"><span>📄</span><span class="file-chip-name" id="fileName"></span></div>
         <div class="error-box" id="errorBox"></div>
+      </div>
+
+      <!-- Download panel -->
+      <div id="downloadPanel" style="display:none;margin-top:1rem;">
+        <p class="section-label">下載統計表</p>
+        <div class="download-zone" id="downloadZone">
+          <span class="download-icon">📥</span>
+          <p class="download-title">26FW 進度統計</p>
+          <p class="download-hint">含商品分類、款式合計<br>目標套數、已拍完、剩餘</p>
+          <button class="download-btn" id="downloadBtn">下載 Excel</button>
+        </div>
       </div>
     </div>
   </div>
@@ -268,6 +299,8 @@
       fileNameEl.textContent = saved.fileName;
       fileChip.classList.add('show');
       render(saved.rows, saved.totalDone, saved.overallPct);
+      if (saved.uploadedAt) showUploadDate(saved.uploadedAt);
+      showDownloadPanel(saved.rows, saved.totalDone, saved.overallPct);
     } else {
       renderDefault();
     }
@@ -346,9 +379,12 @@
         if (rows.some(r => !r.inDB && r.done > 0)) warnBox.classList.add('show');
 
         // Save to IndexedDB
-        saveToIDB({ fileName: file.name, rows, totalDone, overallPct });
+        const uploadedAt = new Date().toISOString();
+        saveToIDB({ fileName: file.name, rows, totalDone, overallPct, uploadedAt });
 
         render(rows, totalDone, overallPct);
+        showUploadDate(uploadedAt);
+        showDownloadPanel(rows, totalDone, overallPct);
         spinner.classList.remove('show');
         fileNameEl.textContent = file.name;
         fileChip.classList.add('show');
@@ -358,6 +394,56 @@
     };
     reader.onerror = () => showError('檔案讀取失敗');
     reader.readAsArrayBuffer(file);
+  }
+
+  function showDownloadPanel(rows, totalDone, overallPct) {
+    document.getElementById('downloadPanel').style.display = 'block';
+    document.getElementById('downloadBtn').onclick = () => downloadExcel(rows, totalDone, overallPct);
+  }
+
+  function downloadExcel(rows, totalDone, overallPct) {
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+    const wsData = [
+      ['26FW 拍攝進度統計'],
+      [`匯出時間：${dateStr}`],
+      [],
+      ['商品分類', '款式合計', '目標套數', '已拍完', '完成進度（剩餘）'],
+      ...rows.map(r => {
+        const rem = r.target !== null ? r.target - r.done : null;
+        return [
+          r.category,
+          r.styles ?? '—',
+          r.target ?? '—',
+          r.done,
+          rem !== null ? (rem <= 0 ? '✓ 完成' : rem) : '—',
+        ];
+      }),
+      [],
+      ['合計', DB_TOTAL_STYLES, DB_TOTAL_TARGET, totalDone, DB_TOTAL_TARGET - totalDone],
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Column widths
+    ws['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 16 }];
+
+    // Merge title row
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '26FW進度統計');
+
+    const fileName = `26FW_拍攝進度統計_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  }
+
+  function showUploadDate(isoStr) {
+    const d = new Date(isoStr);
+    const fmt = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    document.getElementById('uploadDateText').textContent = `資料上傳更新日期：${fmt}`;
+    document.getElementById('uploadDateNote').style.display = 'flex';
   }
 
   function render(rows, totalDone, overallPct) {

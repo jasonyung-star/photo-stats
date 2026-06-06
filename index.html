@@ -440,21 +440,21 @@
       right:  { style: 'thin', color: borderColor },
     };
 
-    const hStyle = { // header: light gray bg, black font
-      font:      { sz: 9, color: { rgb: 'FF000000' }, name: 'Arial', family: 2 },
-      fill:      { patternType: 'solid', fgColor: { rgb: 'FFD9D9D9' } },
+    const hStyle = { // header: light gray bg #D9D9D9, black font
+      font:      { sz: 9, bold: false, color: { rgb: '000000' }, name: 'Arial', family: 2 },
+      fill:      { patternType: 'solid', fgColor: { rgb: 'D9D9D9' } },
       alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
       border:    thinBorder,
     };
     const dStyle = { // data rows
-      font:      { sz: 9, color: { rgb: 'FF3E3E3E' }, name: 'Arial', family: 2 },
-      fill:      { patternType: 'solid', fgColor: { rgb: 'FFFFFFFF' } },
+      font:      { sz: 9, color: { rgb: '3E3E3E' }, name: 'Arial', family: 2 },
+      fill:      { patternType: 'solid', fgColor: { rgb: 'FFFFFF' } },
       alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
       border:    thinBorder,
     };
     const tStyle = { // total row
-      font:      { sz: 9, color: { rgb: 'FF3E3E3E' }, name: 'Arial', family: 2 },
-      fill:      { patternType: 'solid', fgColor: { rgb: 'FFF7F7F7' } },
+      font:      { sz: 9, color: { rgb: '3E3E3E' }, name: 'Arial', family: 2 },
+      fill:      { patternType: 'solid', fgColor: { rgb: 'F7F7F7' } },
       alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
       border:    thinBorder,
     };

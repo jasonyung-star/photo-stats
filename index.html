@@ -186,7 +186,7 @@
 
       <!-- Chart + Stats two-column layout -->
       <div id="chartSection" style="display:none;margin-bottom:2rem;">
-        <div style="display:grid;grid-template-columns:160px 1fr;gap:1rem;align-items:stretch;">
+        <div style="display:grid;grid-template-columns:220px 1fr;gap:1rem;align-items:stretch;">
 
           <!-- Left: stats cards vertical -->
           <div id="statsRow" style="display:flex;flex-direction:column;gap:0.75rem;"></div>
@@ -817,10 +817,10 @@
     document.getElementById('statsRow').innerHTML = `
       <div class="stat-card" style="flex:1;display:flex;flex-direction:column;padding:1rem 1rem;">
         <div class="stat-label" style="margin-bottom:0.8rem;">整體完成率</div>
-        <div style="position:relative;width:130px;height:130px;margin:0 auto;">
-          <canvas id="donutChart" width="130" height="130"></canvas>
+        <div style="position:relative;width:170px;height:170px;margin:0 auto;">
+          <canvas id="donutChart" width="170" height="170"></canvas>
           <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
-            <span style="font-family:'DM Mono',monospace;font-size:1.4rem;font-weight:600;color:${color};">${overallPct}<span style="font-size:0.65rem;color:var(--text-dim);margin-left:1px;">%</span></span>
+            <span style="font-family:'DM Mono',monospace;font-size:1.9rem;font-weight:600;color:${color};">${overallPct}<span style="font-size:0.75rem;color:var(--text-dim);margin-left:1px;">%</span></span>
           </div>
         </div>
         <div style="margin-top:1rem;display:flex;flex-direction:column;gap:0.4rem;">
@@ -847,12 +847,12 @@
       const canvas = document.getElementById('donutChart');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
-      const cx = 65, cy = 65, r = 50, lineW = 14;
+      const cx = 85, cy = 85, r = 68, lineW = 16;
       const pct = Math.min(overallPct / 100, 1);
       const startAngle = -Math.PI / 2;
 
       function draw() {
-        ctx.clearRect(0, 0, 130, 130);
+        ctx.clearRect(0, 0, 170, 170);
         // Track
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);

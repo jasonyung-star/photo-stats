@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>26FW 拍攝進度統計</title>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
@@ -80,16 +81,16 @@
     #results { margin-bottom:1.2rem; }
 
     /* Summary cards */
-    .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:0.75rem; margin-bottom:1.6rem; }
-    .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem 1.2rem; position:relative; overflow:hidden; transition:border-color 0.2s,box-shadow 0.2s; box-shadow:0 1px 3px rgba(139,111,94,0.07); }
+    .stats-row { display:flex; flex-direction:column; gap:0.75rem; }
+    .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:0.9rem 1.1rem; position:relative; overflow:hidden; transition:border-color 0.2s,box-shadow 0.2s; box-shadow:0 1px 3px rgba(139,111,94,0.07); }
     .stat-card::after { content:''; position:absolute; top:0;left:0;right:0;height:3px; background:var(--accent); opacity:0; transition:opacity 0.2s; border-radius:3px 3px 0 0; }
     .stat-card:hover { border-color:var(--accent); box-shadow:0 2px 8px var(--glow); }
     .stat-card:hover::after { opacity:1; }
-    .stat-label { font-size:0.72rem; color:var(--text-dim); margin-bottom:0.35rem; }
-    .stat-value { font-family:'DM Mono',monospace; font-size:1.7rem; font-weight:500; color:var(--accent); line-height:1; }
+    .stat-label { font-size:0.7rem; color:var(--text-dim); margin-bottom:0.3rem; }
+    .stat-value { font-family:'DM Mono',monospace; font-size:1.5rem; font-weight:500; color:var(--accent); line-height:1; }
     .stat-value.green { color:var(--green); }
     .stat-value.yellow { color:var(--yellow); }
-    .stat-unit { font-size:0.66rem; color:var(--text-dim); margin-left:2px; }
+    .stat-unit { font-size:0.62rem; color:var(--text-dim); margin-left:2px; }
 
     /* Progress table */
     .prog-table-wrap { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; box-shadow:0 1px 4px rgba(139,111,94,0.08); }
@@ -169,13 +170,13 @@
 </head>
 <body>
 <div class="topbar">
-  <span class="topbar-brand">emily_liu</span>
-  <span class="topbar-title">版本：2026/06/06</span>
+  <span class="topbar-brand">emily_lu</span>
+  <span class="topbar-title">版本：2026/06/07</span>
 </div>
 <div class="page-body">
 <div class="container">
   <header>
-    <h1>拍攝<span>進度</span></h1>
+    <h1>26FW<span>拍攝進度</span></h1>
   </header>
 
   <div class="main-layout">
@@ -183,9 +184,29 @@
     <div class="content-col">
       <div class="warn-box" id="warnBox">⚠ 上傳的分類與資料庫分類有不符，無基準的分類將以「—」顯示目標套數。</div>
 
-      <section id="results">
-        <p id="statsTitle" style="font-size:1rem;font-weight:700;color:var(--text);margin-bottom:0.75rem;letter-spacing:0.02em;"></p>
-        <div class="stats-row" id="statsRow"></div>
+      <!-- Chart + Stats two-column layout -->
+      <div id="chartSection" style="display:none;margin-bottom:2rem;">
+        <div style="display:grid;grid-template-columns:160px 1fr;gap:1rem;align-items:stretch;">
+
+          <!-- Left: stats cards vertical -->
+          <div id="statsRow" style="display:flex;flex-direction:column;gap:0.75rem;"></div>
+
+          <!-- Right: chart -->
+          <div class="prog-table-wrap" style="padding:1.2rem 1.4rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+              <p style="font-size:0.82rem;font-weight:600;color:var(--text);letter-spacing:0.02em;margin:0;">拍樣拍攝進度</p>
+              <div style="display:flex;align-items:center;gap:1rem;font-size:0.72rem;color:var(--text-dim);">
+                <span style="display:flex;align-items:center;gap:0.35rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#EBEBEB;border:1px solid #D9D9D9;"></span>目標款式</span>
+                <span style="display:flex;align-items:center;gap:0.35rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#c4a898;"></span>已完成款式</span>
+              </div>
+            </div>
+            <canvas id="monthlyChart" height="85"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <section id="results" style="display:none;">
+        <p id="statsTitle"></p>
       </section>
 
       <!-- 26FW 統計表 -->
@@ -306,6 +327,7 @@
       fileNameEl.textContent = saved.fileName;
       fileChip.classList.add('show');
       render(saved.rows, saved.totalDone, saved.overallPct);
+      if (saved.chartData) renderChart(saved.chartData);
       if (saved.uploadedAt) showUploadDate(saved.uploadedAt);
       showDownloadPanel(saved.rows, saved.totalDone, saved.overallPct);
     } else {
@@ -315,7 +337,8 @@
 
   function renderDefault() {
     const tbody = document.getElementById('tableBody');
-    tbody.innerHTML = DATABASE.map(d => `
+    const sorted = [...DATABASE].sort((a, b) => b.styles - a.styles);
+    tbody.innerHTML = sorted.map(d => `
       <tr>
         <td>${d.category}</td>
         <td class="num">${d.styles.toLocaleString()}</td>
@@ -355,9 +378,111 @@
 
         const keys = Object.keys(raw[0]);
         const colA = keys.find(k => /狀態/.test(k)) || keys[0];
+        const colB = keys.find(k => /款號/.test(k)) || keys[1];
         const colD = keys.find(k => /商品分類/.test(k)) || keys[3];
+        const colK = keys.find(k => /拍樣繳交/.test(k)) || keys[10];
         const colS = keys.find(k => /拍攝套數/.test(k));
         if (!colS) throw new Error('找不到「拍攝套數」欄位');
+
+        // Build monthly chart data: K=date, B=style no (deduplicate), D=category
+        // forward fill B and D columns
+        let lastB1 = '', lastD2 = '';
+        const chartRows = raw.map(row => {
+          if (row[colB] !== '') lastB1 = String(row[colB]).trim();
+          if (row[colD] !== '') lastD2 = String(row[colD]).trim();
+          return {
+            styleNo: lastB1,
+            category: lastD2,
+            dateVal: row[colK],
+          };
+        }).filter(r => r.styleNo && r.styleNo !== '' && r.dateVal && r.dateVal !== '');
+
+        // Deduplicate by styleNo (keep first occurrence)
+        const seenStyles = new Set();
+        const uniqueChartRows = chartRows.filter(r => {
+          if (seenStyles.has(r.styleNo)) return false;
+          seenStyles.add(r.styleNo);
+          return true;
+        });
+
+        // Build completed chart data: exclude 已刪除款式/不拍/待安排/待拍攝
+        const EXCLUDE_STATUS = new Set(['已刪除款式', '不拍', '待安排', '待拍攝']);
+        let lastA2 = '', lastB2 = '', lastD3 = '';
+        const doneChartRows = raw.map(row => {
+          if (row[colA] !== '') lastA2 = String(row[colA]).trim();
+          if (row[colB] !== '') lastB2 = String(row[colB]).trim();
+          if (row[colD] !== '') lastD3 = String(row[colD]).trim();
+          return {
+            status: lastA2,
+            styleNo: lastB2,
+            category: lastD3,
+            dateVal: row[colK],
+          };
+        }).filter(r =>
+          !EXCLUDE_STATUS.has(r.status) &&
+          r.styleNo && r.styleNo !== '' &&
+          r.dateVal && r.dateVal !== ''
+        );
+        const seenDoneStyles = new Set();
+        const uniqueDoneRows = doneChartRows.filter(r => {
+          if (seenDoneStyles.has(r.styleNo)) return false;
+          seenDoneStyles.add(r.styleNo);
+          return true;
+        });
+
+        // Parse month from date value (Excel serial or string)
+        function getMonth(val) {
+          if (typeof val === 'number') {
+            // Excel serial date
+            const date = new Date((val - 25569) * 86400 * 1000);
+            return date.getUTCMonth() + 1;
+          }
+          if (typeof val === 'string') {
+            const m = val.match(/(\d{4})[\/\-](\d{1,2})/);
+            if (m) return parseInt(m[2]);
+          }
+          return null;
+        }
+
+        // Aggregate target: monthlyData[month][category] = count
+        const categories = [...new Set(uniqueChartRows.map(r => r.category).filter(Boolean))];
+        const monthlyData = {};
+        for (let m = 1; m <= 12; m++) monthlyData[m] = {};
+        uniqueChartRows.forEach(r => {
+          const month = getMonth(r.dateVal);
+          if (!month) return;
+          if (!monthlyData[month][r.category]) monthlyData[month][r.category] = 0;
+          monthlyData[month][r.category]++;
+        });
+
+        // Aggregate done: monthlyDone[month][category] = count
+        const monthlyDone = {};
+        for (let m = 1; m <= 12; m++) monthlyDone[m] = {};
+        uniqueDoneRows.forEach(r => {
+          const month = getMonth(r.dateVal);
+          if (!month) return;
+          if (!monthlyDone[month][r.category]) monthlyDone[month][r.category] = 0;
+          monthlyDone[month][r.category]++;
+        });
+
+        const chartData = { monthlyData, monthlyDone, categories };
+
+        // Calculate styles from Excel: C欄=2026秋冬, deduplicate B欄 per D欄商品分類
+        const colC = keys.find(k => /季別/.test(k)) || keys[2];
+        let lastB3 = '', lastC3 = '', lastD4 = '';
+        const stylesMap = {};
+        const seenStylesForCount = {};
+        raw.forEach(row => {
+          if (row[colB] !== '') lastB3 = String(row[colB]).trim();
+          if (row[colC] !== '') lastC3 = String(row[colC]).trim();
+          if (row[colD] !== '') lastD4 = String(row[colD]).trim();
+          if (lastC3 !== '2026秋冬' || !lastB3 || !lastD4) return;
+          if (!seenStylesForCount[lastD4]) seenStylesForCount[lastD4] = new Set();
+          seenStylesForCount[lastD4].add(lastB3);
+        });
+        Object.keys(seenStylesForCount).forEach(cat => {
+          stylesMap[cat] = seenStylesForCount[cat].size;
+        });
 
         let lastA = '', lastD = '';
         const filled = raw.map(row => {
@@ -376,10 +501,10 @@
         const rows = allCats.map(cat => ({
           category: cat,
           done: agg[cat] || 0,
-          styles: DB_MAP[cat] ? DB_MAP[cat].styles : null,
+          styles: stylesMap[cat] ?? (DB_MAP[cat] ? DB_MAP[cat].styles : null),
           target: DB_MAP[cat] ? DB_MAP[cat].target : null,
           inDB: !!DB_MAP[cat],
-        })).sort((a, b) => (b.done / (b.target || 1)) - (a.done / (a.target || 1)));
+        })).sort((a, b) => (b.styles ?? 0) - (a.styles ?? 0));
 
         const totalDone = rows.reduce((s, r) => s + r.done, 0);
         const overallPct = DB_TOTAL_TARGET > 0 ? Math.round(totalDone / DB_TOTAL_TARGET * 100) : 0;
@@ -388,9 +513,10 @@
 
         // Save to IndexedDB
         const uploadedAt = new Date().toISOString();
-        saveToIDB({ fileName: file.name, rows, totalDone, overallPct, uploadedAt });
+        saveToIDB({ fileName: file.name, rows, totalDone, overallPct, uploadedAt, chartData });
 
         render(rows, totalDone, overallPct);
+        renderChart(chartData);
         showUploadDate(uploadedAt);
         showDownloadPanel(rows, totalDone, overallPct);
         spinner.classList.remove('show');
@@ -402,6 +528,190 @@
     };
     reader.onerror = () => showError('檔案讀取失敗');
     reader.readAsArrayBuffer(file);
+  }
+
+  let monthlyChartInstance = null;
+
+  function renderChart({ monthlyData, monthlyDone, categories }) {
+    document.getElementById('chartSection').style.display = 'block';
+
+    // Only months with data
+    const activeMonths = [];
+    for (let m = 1; m <= 12; m++) {
+      const total = categories.reduce((s, c) => s + (monthlyData[m][c] || 0), 0);
+      if (total > 0) activeMonths.push(m);
+    }
+
+    const labels = activeMonths.map(m => `${m}月`);
+    const monthTotals = activeMonths.map(m =>
+      categories.reduce((s, c) => s + (monthlyData[m][c] || 0), 0)
+    );
+    const monthDoneTotals = activeMonths.map(m =>
+      categories.reduce((s, c) => s + ((monthlyDone || {})[m]?.[c] || 0), 0)
+    );
+
+    const ctx = document.getElementById('monthlyChart').getContext('2d');
+    if (monthlyChartInstance) monthlyChartInstance.destroy();
+
+    // Plugin: draw value on top of each bar
+    const valueLabelPlugin = {
+      id: 'valueLabel',
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        chart.data.datasets.forEach((ds, di) => {
+          const isTarget = ds.label === '目標款式';
+          ctx.font = isTarget ? '500 10px DM Mono, monospace' : '600 10px DM Mono, monospace';
+          ctx.fillStyle = isTarget ? '#9c8c82' : '#2d2420';
+          chart.getDatasetMeta(di).data.forEach((bar, i) => {
+            const val = ds.data[i];
+            if (val > 0) ctx.fillText(val, bar.x, bar.y - (isTarget ? 14 : 4));
+          });
+        });
+        ctx.restore();
+      }
+    };
+
+    // Custom tooltip positioner: keep inside chart area
+    Chart.Tooltip.positioners.insideChart = function(elements, eventPosition) {
+      const chart = this.chart;
+      const chartArea = chart.chartArea;
+      let x = eventPosition.x + 12;
+      let y = chartArea.top;
+      if (x + 200 > chartArea.right) x = eventPosition.x - 212;
+      return { x, y };
+    };
+
+    // External HTML tooltip handler
+    function htmlTooltipHandler(context) {
+      let tooltipEl = document.getElementById('chartHtmlTooltip');
+      if (!tooltipEl) {
+        tooltipEl = document.createElement('div');
+        tooltipEl.id = 'chartHtmlTooltip';
+        tooltipEl.style.cssText = `
+          position:fixed;pointer-events:none;z-index:9999;
+          background:rgba(255,255,255,0.97);border:1px solid #e0d8d0;
+          border-radius:8px;padding:10px 12px;font-size:11px;
+          font-family:'Noto Sans TC',sans-serif;color:#5a4a40;
+          box-shadow:0 4px 16px rgba(139,111,94,0.15);
+          max-height:80vh;overflow-y:auto;min-width:160px;
+        `;
+        document.body.appendChild(tooltipEl);
+      }
+
+      const { tooltip } = context;
+      if (tooltip.opacity === 0) { tooltipEl.style.display = 'none'; return; }
+
+      const mi = activeMonths[tooltip.dataPoints?.[0]?.dataIndex];
+      if (mi === undefined) return;
+
+      const doneTotal = categories.reduce((s, c) => s + ((monthlyDone || {})[mi]?.[c] || 0), 0);
+      const targetTotal = categories.reduce((s, c) => s + (monthlyData[mi][c] || 0), 0);
+
+      let html = `<div style="font-weight:600;color:#2d2420;margin-bottom:6px;">${mi}月</div>`;
+      html += `<div style="margin-bottom:2px;"><span style="display:inline-block;width:8px;height:8px;border-radius:1px;background:#c4a898;margin-right:5px;"></span>已完成款式：${doneTotal} 款</div>`;
+      html += `<div style="margin-bottom:8px;"><span style="display:inline-block;width:8px;height:8px;border-radius:1px;background:#EBEBEB;border:1px solid #D9D9D9;margin-right:5px;"></span>目標款式：${targetTotal} 款</div>`;
+
+      // 目標細項
+      const targetLines = categories.filter(c => (monthlyData[mi][c] || 0) > 0);
+      if (targetLines.length) {
+        html += `<div style="color:#9c8c82;font-size:10px;border-top:1px solid #e0d8d0;padding-top:6px;margin-bottom:4px;">── 目標細項 ──</div>`;
+        targetLines.forEach(c => {
+          html += `<div style="margin-bottom:2px;">${c}：${monthlyData[mi][c]} 款</div>`;
+        });
+      }
+
+      // 未完成細項
+      const remLines = categories.filter(c => {
+        const rem = (monthlyData[mi][c] || 0) - ((monthlyDone || {})[mi]?.[c] || 0);
+        return rem > 0;
+      });
+      if (remLines.length) {
+        html += `<div style="color:#9c8c82;font-size:10px;border-top:1px solid #e0d8d0;padding-top:6px;margin-top:4px;margin-bottom:4px;">── 未完成細項 ──</div>`;
+        remLines.forEach(c => {
+          const rem = (monthlyData[mi][c] || 0) - ((monthlyDone || {})[mi]?.[c] || 0);
+          html += `<div style="margin-bottom:2px;">${c}：${rem} 款</div>`;
+        });
+      }
+
+      tooltipEl.innerHTML = html;
+      tooltipEl.style.display = 'block';
+
+      // Position: follow mouse, flip if near edge
+      const canvasRect = context.chart.canvas.getBoundingClientRect();
+      const pos = tooltip.caretX;
+      let left = canvasRect.left + pos + 14;
+      let top = canvasRect.top + tooltip.caretY - 10;
+      const tw = tooltipEl.offsetWidth || 180;
+      const th = tooltipEl.offsetHeight || 200;
+      if (left + tw > window.innerWidth - 10) left = canvasRect.left + pos - tw - 14;
+      if (top + th > window.innerHeight - 10) top = window.innerHeight - th - 10;
+      tooltipEl.style.left = left + 'px';
+      tooltipEl.style.top = top + 'px';
+    }
+
+    monthlyChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '目標款式',
+            data: monthTotals,
+            backgroundColor: '#EBEBEB',
+            borderRadius: 4,
+            borderSkipped: false,
+            order: 2,
+            barPercentage: 0.6,
+            categoryPercentage: 0.7,
+          },
+          {
+            label: '已完成款式',
+            data: monthDoneTotals,
+            backgroundColor: '#c4a898',
+            borderRadius: 4,
+            borderSkipped: false,
+            order: 1,
+            barPercentage: 0.6,
+            categoryPercentage: 0.7,
+          },
+        ]
+      },
+      plugins: [valueLabelPlugin],
+      options: {
+        responsive: true,
+        grouped: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: false,
+          },
+          tooltip: {
+            enabled: false,
+            external: htmlTooltipHandler,
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { font: { family: 'Noto Sans TC', size: 11 }, color: '#9c8c82' },
+            border: { color: '#e0d8d0' }
+          },
+          y: {
+            grid: { color: '#e0d8d0', lineWidth: 1 },
+            ticks: { font: { family: 'DM Mono', size: 10 }, color: '#9c8c82' },
+            border: { dash: [4,4], color: 'transparent' }
+          }
+        },
+      }
+    });
+
+    ctx.canvas.addEventListener('mouseleave', () => {
+      const el = document.getElementById('chartHtmlTooltip');
+      if (el) el.style.display = 'none';
+    });
   }
 
   function showDownloadPanel(rows, totalDone, overallPct) {
@@ -461,11 +771,12 @@
 
     // Build worksheet as array of cell objects
     const headers = ['商品分類','款式合計','目標套數','已拍完','完成進度（剩餘）','每日拍攝量','工作天數'];
+    const reorderedRows = dataRows.map(r => [r[0], r[1], r[2], r[3], r[4], r[5], r[6]]);
     const totalRowData = ['合計', DB_TOTAL_STYLES, DB_TOTAL_TARGET, totalDone, DB_TOTAL_TARGET - totalDone, '', totalDays];
 
     const allRows = [
       headers.map(v => ({ v, s: hStyle })),
-      ...dataRows.map(row => row.map(v => ({ v, s: dStyle }))),
+      ...reorderedRows.map(row => row.map(v => ({ v, s: dStyle }))),
       totalRowData.map(v => ({ v, s: tStyle })),
     ];
 
@@ -499,25 +810,67 @@
   }
 
   function render(rows, totalDone, overallPct) {
-    const remaining = DB_TOTAL_TARGET - totalDone;
+    document.getElementById('chartSection').style.display = 'block';
+    const remaining = Math.max(0, DB_TOTAL_TARGET - totalDone);
+    const color = overallPct >= 100 ? '#5a8a6a' : overallPct >= 50 ? '#8b6f5e' : '#b8892a';
+
     document.getElementById('statsRow').innerHTML = `
-      <div class="stat-card">
-        <div class="stat-label">整體完成率</div>
-        <div class="stat-value ${overallPct >= 100 ? 'green' : overallPct >= 50 ? '' : 'yellow'}">${overallPct}<span class="stat-unit">%</span></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">已拍完套數</div>
-        <div class="stat-value green">${totalDone.toLocaleString()}<span class="stat-unit">套</span></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">目標總套數</div>
-        <div class="stat-value">${DB_TOTAL_TARGET.toLocaleString()}<span class="stat-unit">套</span></div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">剩餘套數</div>
-        <div class="stat-value yellow">${Math.max(0, remaining).toLocaleString()}<span class="stat-unit">套</span></div>
+      <div class="stat-card" style="flex:1;display:flex;flex-direction:column;padding:1rem 1rem;">
+        <div class="stat-label" style="margin-bottom:0.8rem;">整體完成率</div>
+        <div style="position:relative;width:130px;height:130px;margin:0 auto;">
+          <canvas id="donutChart" width="130" height="130"></canvas>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+            <span style="font-family:'DM Mono',monospace;font-size:1.4rem;font-weight:600;color:${color};">${overallPct}<span style="font-size:0.65rem;color:var(--text-dim);margin-left:1px;">%</span></span>
+          </div>
+        </div>
+        <div style="margin-top:1rem;display:flex;flex-direction:column;gap:0.4rem;">
+          <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.75rem;color:var(--text);">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;"></span>
+            <span style="color:var(--text-dim);">已拍完套數</span>
+            <span style="margin-left:auto;font-family:'DM Mono',monospace;font-weight:600;color:var(--green);">${totalDone.toLocaleString()}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.75rem;color:var(--text);">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ebe6e1;border:1px solid #d0c8c0;flex-shrink:0;"></span>
+            <span style="color:var(--text-dim);">剩餘套數</span>
+            <span style="margin-left:auto;font-family:'DM Mono',monospace;font-weight:600;color:var(--yellow);">${remaining.toLocaleString()}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.75rem;border-top:1px solid var(--border);padding-top:0.4rem;margin-top:0.1rem;">
+            <span style="display:inline-block;width:8px;height:8px;flex-shrink:0;"></span>
+            <span style="color:var(--text-dim);">目標總套數</span>
+            <span style="margin-left:auto;font-family:'DM Mono',monospace;font-weight:600;color:var(--text);">${DB_TOTAL_TARGET.toLocaleString()}</span>
+          </div>
+        </div>
       </div>`;
-    document.getElementById('statsTitle').textContent = '26FW';
+    document.getElementById('statsTitle').textContent = '';
+
+    requestAnimationFrame(() => {
+      const canvas = document.getElementById('donutChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const cx = 65, cy = 65, r = 50, lineW = 14;
+      const pct = Math.min(overallPct / 100, 1);
+      const startAngle = -Math.PI / 2;
+
+      function draw() {
+        ctx.clearRect(0, 0, 130, 130);
+        // Track
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ebe6e1';
+        ctx.lineWidth = lineW;
+        ctx.stroke();
+        // Progress
+        if (pct > 0) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, startAngle, startAngle + Math.PI * 2 * pct);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = lineW;
+          ctx.lineCap = 'round';
+          ctx.stroke();
+        }
+      }
+      draw();
+    });
 
     const tbody = document.getElementById('tableBody');
     tbody.innerHTML = rows.map(r => {

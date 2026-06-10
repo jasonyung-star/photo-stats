@@ -171,7 +171,7 @@
 <body>
 <div class="topbar">
   <span class="topbar-brand">emily_lu</span>
-  <span class="topbar-title">版本：2026/06/07</span>
+  <span class="topbar-title">版本：2026/06/10</span>
 </div>
 <div class="page-body">
 <div class="container">
@@ -200,7 +200,7 @@
                 <span style="display:flex;align-items:center;gap:0.35rem;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#c4a898;"></span>已完成款式</span>
               </div>
             </div>
-            <canvas id="monthlyChart" height="85"></canvas>
+            <canvas id="monthlyChart" height="120"></canvas>
           </div>
         </div>
       </div>
@@ -702,7 +702,8 @@
           y: {
             grid: { color: '#e0d8d0', lineWidth: 1 },
             ticks: { font: { family: 'DM Mono', size: 10 }, color: '#9c8c82' },
-            border: { dash: [4,4], color: 'transparent' }
+            border: { dash: [4,4], color: 'transparent' },
+            grace: '0%',
           }
         },
       }
